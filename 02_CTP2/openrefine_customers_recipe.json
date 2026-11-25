@@ -1,0 +1,199 @@
+[
+  {
+    "op": "core/row-reorder",
+    "description": "Reorder rows permanently by customer_id (ascending) before de-duplicating",
+    "sorting": {
+      "criteria": [
+        { "column": "customer_id", "valueType": "string", "reverse": false, "caseSensitive": false, "blankPosition": 2, "errorPosition": 1 }
+      ]
+    }
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down customer_id so an identical row, right below its first occurrence after sorting, becomes blank",
+    "columnName": "customer_id"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down first_name (part of the exact-duplicate signature)",
+    "columnName": "first_name"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down last_name (part of the exact-duplicate signature)",
+    "columnName": "last_name"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down email (part of the exact-duplicate signature)",
+    "columnName": "email"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down phone (part of the exact-duplicate signature)",
+    "columnName": "phone"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down birth_date (part of the exact-duplicate signature)",
+    "columnName": "birth_date"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down address (part of the exact-duplicate signature)",
+    "columnName": "address"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down city (part of the exact-duplicate signature)",
+    "columnName": "city"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down postal_code (part of the exact-duplicate signature)",
+    "columnName": "postal_code"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down country (part of the exact-duplicate signature)",
+    "columnName": "country"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down signup_date (part of the exact-duplicate signature)",
+    "columnName": "signup_date"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down marketing_consent (part of the exact-duplicate signature)",
+    "columnName": "marketing_consent"
+  },
+  {
+    "op": "core/blank-down",
+    "description": "Blank down loyalty_tier (part of the exact-duplicate signature) -- only a row blank on EVERY column is a true exact duplicate",
+    "columnName": "loyalty_tier"
+  },
+  {
+    "op": "core/row-removal",
+    "description": "Facets combine with AND: remove only rows where customer_id, email AND postal_code were all blanked down, i.e. rows that are a true full duplicate of the row above, not just a shared customer_id",
+    "engineConfig": {
+      "facets": [
+        { "type": "list", "name": "customer_id", "columnName": "customer_id", "expression": "isBlank(value)", "selection": [ { "v": { "v": true, "l": "true" } } ], "selectBlank": false, "selectError": false, "invert": false },
+        { "type": "list", "name": "email", "columnName": "email", "expression": "isBlank(value)", "selection": [ { "v": { "v": true, "l": "true" } } ], "selectBlank": false, "selectError": false, "invert": false },
+        { "type": "list", "name": "postal_code", "columnName": "postal_code", "expression": "isBlank(value)", "selection": [ { "v": { "v": true, "l": "true" } } ], "selectBlank": false, "selectError": false, "invert": false }
+      ],
+      "mode": "row-based"
+    }
+  },
+  {
+    "op": "core/text-transform",
+    "description": "first_name: trim + collapse internal spaces + titlecase",
+    "columnName": "first_name",
+    "expression": "value.trim().replace(/\\s+/, ' ').toTitlecase()",
+    "onError": "keep-original",
+    "repeat": false,
+    "repeatCount": 1
+  },
+  {
+    "op": "core/text-transform",
+    "description": "last_name: trim + collapse internal spaces + titlecase",
+    "columnName": "last_name",
+    "expression": "value.trim().replace(/\\s+/, ' ').toTitlecase()",
+    "onError": "keep-original",
+    "repeat": false,
+    "repeatCount": 1
+  },
+  {
+    "op": "core/text-transform",
+    "description": "email: trim + lowercase",
+    "columnName": "email",
+    "expression": "value.trim().toLowercase()",
+    "onError": "keep-original",
+    "repeat": false,
+    "repeatCount": 1
+  },
+  {
+    "op": "core/mass-edit",
+    "description": "country: cluster the ~18 spellings into FR / DE / ES / BE (from Cluster and Edit, key collision)",
+    "columnName": "country",
+    "expression": "value",
+    "edits": [
+      { "fromBlank": false, "fromError": false, "from": ["FR", "fr", "France", "france", "FRA"], "to": "FR" },
+      { "fromBlank": false, "fromError": false, "from": ["DE", "DEU", "Allemagne", "Germany"], "to": "DE" },
+      { "fromBlank": false, "fromError": false, "from": ["ES", "es", "Spain", "Espagne"], "to": "ES" },
+      { "fromBlank": false, "fromError": false, "from": ["BE", "BEL", "Belgium", "Belgique"], "to": "BE" }
+    ]
+  },
+  {
+    "op": "core/text-transform",
+    "description": "signup_date -> ISO YYYY-MM-DD (DD/MM/YYYY, MM-DD-YYYY, YYYY/MM/DD forms seen in the data)",
+    "columnName": "signup_date",
+    "expression": "if(isNotNull(value.match(/\\d{2}\\/\\d{2}\\/\\d{4}/)), with(value.split('/'), p, p[2]+'-'+p[1]+'-'+p[0]), if(isNotNull(value.match(/\\d{2}-\\d{2}-\\d{4}/)), with(value.split('-'), p, p[2]+'-'+p[0]+'-'+p[1]), if(isNotNull(value.match(/\\d{4}\\/\\d{2}\\/\\d{2}/)), value.replace('/', '-'), value)))",
+    "onError": "keep-original",
+    "repeat": false,
+    "repeatCount": 1
+  },
+  {
+    "op": "core/text-transform",
+    "description": "birth_date -> ISO YYYY-MM-DD (same GREL as signup_date)",
+    "columnName": "birth_date",
+    "expression": "if(isNotNull(value.match(/\\d{2}\\/\\d{2}\\/\\d{4}/)), with(value.split('/'), p, p[2]+'-'+p[1]+'-'+p[0]), if(isNotNull(value.match(/\\d{2}-\\d{2}-\\d{4}/)), with(value.split('-'), p, p[2]+'-'+p[0]+'-'+p[1]), if(isNotNull(value.match(/\\d{4}\\/\\d{2}\\/\\d{2}/)), value.replace('/', '-'), value)))",
+    "onError": "keep-original",
+    "repeat": false,
+    "repeatCount": 1
+  },
+  {
+    "op": "core/text-transform",
+    "description": "loyalty_tier: lower case",
+    "columnName": "loyalty_tier",
+    "expression": "value.trim().toLowercase()",
+    "onError": "keep-original",
+    "repeat": false,
+    "repeatCount": 1
+  },
+  {
+    "op": "core/mass-edit",
+    "description": "loyalty_tier: fix the 'platinium' misspelling",
+    "columnName": "loyalty_tier",
+    "expression": "value",
+    "edits": [
+      { "fromBlank": false, "fromError": false, "from": ["platinium"], "to": "platinum" }
+    ]
+  },
+  {
+    "op": "core/text-transform",
+    "description": "French postal codes that lost their leading zero (4 digits, country FR)",
+    "columnName": "postal_code",
+    "expression": "if(and(cells['country'].value == 'FR', value.length() == 4), '0' + value, value)",
+    "onError": "keep-original",
+    "repeat": false,
+    "repeatCount": 1
+  },
+  {
+    "op": "core/text-transform",
+    "description": "phones -> +33612345678 format",
+    "columnName": "phone",
+    "expression": "with(value.replace(/[^0-9+]/, ''), v, if(v.startsWith('0033'), '+33' + v.substring(4), if(and(v.startsWith('0'), v.length() == 10), '+33' + v.substring(1), v)))",
+    "onError": "keep-original",
+    "repeat": false,
+    "repeatCount": 1
+  },
+  {
+    "op": "core/column-addition",
+    "description": "Email Duplicates facet -> add is_duplicate_email flag column (flag, do not delete)",
+    "newColumnName": "is_duplicate_email",
+    "baseColumnName": "email",
+    "expression": "if(isBlank(value), false, facetCount(value, 'value', 'email') > 1)",
+    "onError": "set-to-blank",
+    "insertAt": -1
+  },
+  {
+    "op": "core/column-reorder",
+    "description": "Keep original column order plus is_duplicate_email at the end",
+    "columnNames": [
+      "customer_id", "first_name", "last_name", "email", "phone", "birth_date",
+      "address", "city", "postal_code", "country", "signup_date",
+      "marketing_consent", "loyalty_tier", "is_duplicate_email"
+    ]
+  }
+]
